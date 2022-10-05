@@ -1,2 +1,2 @@
 aiogram
-https://github.com/Bel-Shazzar/python-romkan.git#egg=romkan
+git+https://github.com/Bel-Shazzar/python-romkan.git#egg=romkan
