@@ -9,7 +9,7 @@ from aiogram.dispatcher.filters import Text
 from aiogram.dispatcher.filters.state import State, StatesGroup
 from aiogram.types import InputFile
 import romkan
-
+import sys
 
 logging.basicConfig(level=logging.INFO)
 

@@ -74,7 +74,7 @@ class Kanji:
                             reading = reading[:index]
                         if "^" in okurigana:
                             okurigana, k_okurigana = re.split(r"\^", okurigana)
-                            reading = Kanji.to_kana(reading[:-len(okurigana + k_okurigana)]) + '.' + Kanji.to_kana(
+                            reading = Kanji.to_kana(reading[:-len(okurigana + k_okurigana)]) + '\.' + Kanji.to_kana(
                                 okurigana) + \
                                       Kanji.to_kana(k_okurigana, is_katakana=True)
                         else:
