@@ -480,7 +480,9 @@ class Kanji:
                 for nomer in nomers:
                     kana = kana.replace(f"#{nomer}#", '')
             okuriganas = {int(num): Kanji.to_kana(
-                okurigana) for num, okurigana in re.findall(r"(\d)([a-z]+)", kana)}
+                okurigana) for num, okurigana in re.findall(r"(\d)([a-z^]+)", kana) if okurigana[0] != "^"} | {
+                int(num): Kanji.to_kana(okurigana[1:], is_katakana=True)
+                for num, okurigana in re.findall(r"(\d)([a-z^]+)", kana) if okurigana[0] == "^"}
             word = kanjis
             for num, kanji in enumerate(kanjis):
                 if num + 1 in okuriganas.keys():
