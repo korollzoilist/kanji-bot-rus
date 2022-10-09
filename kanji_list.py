@@ -27,10 +27,17 @@ class Kanji:
             info_dict[column[1]] = self.info[column[0]]
 
         info_dict['compound_readings'] = []
-        if compound_readings := re.findall(r"\|(\S+)\|*", info_dict['Kunyomi']):
+        if compound_readings := re.findall(r"\|([1-9a-z:,/_\- ]+)\|*", info_dict['Kunyomi'], re.IGNORECASE):
             compound_readings = re.split(r"/", compound_readings[0])
             for compound_reading in compound_readings:
-                info_dict['compound_readings'].append(Kanji.to_kana(compound_reading.lower()))
+                if compound_reading != 'Q1':
+                    info_dict['compound_readings'].append(
+                        Kanji.to_kana(compound_reading.replace(' ', '').replace('_', ', реже ').lower()))
+        elif compound_readings := re.findall(r"\*([1-9a-z:,_\- ]+)\*", info_dict['Kunyomi'], re.IGNORECASE):
+            for compound_reading in compound_readings:
+                if compound_reading != 'Q1':
+                    info_dict['compound_readings'].append(
+                        Kanji.to_kana(compound_reading.replace(' ', '').replace('_', ', реже ').lower()))
 
         info_dict['RusNick'] = Kanji.escape_chars(info_dict['RusNick'].replace('#', ', ').replace('*', ''))
 
@@ -76,7 +83,7 @@ class Kanji:
                             okurigana, k_okurigana = re.split(r"\^", okurigana)
                             reading = Kanji.to_kana(reading[:-len(okurigana + k_okurigana)]) + '\.' + Kanji.to_kana(
                                 okurigana) + \
-                                      Kanji.to_kana(k_okurigana, is_katakana=True)
+                                Kanji.to_kana(k_okurigana, is_katakana=True)
                         else:
                             if "qi" in okurigana:
                                 okurigana = okurigana[2:]
@@ -102,21 +109,32 @@ class Kanji:
             info_dict['compound_meanings'] = []
             for compound_meaning in compound_meanings:
                 if nums := re.findall(r"\((\d+)\)", compound_meaning):
-                    for num in nums:
-                        compound_meaning = compound_meaning.replace(num,
-                                                                    info_dict['compound_readings'][int(num) - 1])
-                compound_meaning = self.adjust_meaning(compound_meaning)
-                info_dict['compound_meanings'].append(compound_meaning.capitalize())
+                    if "0" in nums:
+                        compound_meaning = compound_meaning.replace("(0)", info_dict['compound_readings'][0])
+                    else:
+                        for num in nums:
+                            compound_meaning = compound_meaning.replace(f"({num})",
+                                                                        "(" +
+                                                                        info_dict['compound_readings'][int(num) - 1] +
+                                                                        ")")
+                if len(info_dict['compounds']) != 1:
+                    compound_meaning = self.adjust_meaning(compound_meaning)
+                    info_dict['compound_meanings'].append(compound_meaning.capitalize())
         else:
             compound_meanings = [compound_meaning.replace('\\', '').replace('/', '') for compound_meaning in re.findall(
                 r"([\S\s.#;][^/]*)", compound_meanings)]
             info_dict['compound_meanings'] = []
             for compound_meaning in compound_meanings:
                 if nums := re.findall(r"\((\d+)\)", compound_meaning):
-                    for num in nums:
-                        compound_meaning = compound_meaning.replace(num, info_dict['compound_readings'][int(num) - 1])
-                compound_meaning = self.adjust_meaning(compound_meaning)
-                info_dict['compound_meanings'].append(compound_meaning.capitalize())
+                    if "0" in nums:
+                        compound_meaning = compound_meaning.replace("(0)", info_dict['compound_readings'][0])
+                    else:
+                        for num in nums:
+                            compound_meaning = compound_meaning.replace(f"({num})",
+                                                                        info_dict['compound_readings'][int(num) - 1])
+                if len(info_dict['compounds']) != 1:
+                    compound_meaning = self.adjust_meaning(compound_meaning)
+                    info_dict['compound_meanings'].append(compound_meaning.capitalize())
 
         compounds_examples = re.split(r',', info_dict['Compounds'].replace(
             '#', '').replace('*', '').replace('^', '').replace('&', '').replace("@", ""))
@@ -285,7 +303,7 @@ class Kanji:
                             meaning = meaning.replace('{^^' + digit + nomer + info + '}', f'; антоним: {char + info}')
                             is_7 = True
         if word_noms := re.findall(r"\^+(\d)(\d+)", meaning):
-            is_0, is_1, is_3, is_4, is_5, is_6, is_7 = False, False, False, False, False, False, False
+            is_0, is_1, is_2, is_3, is_4, is_5, is_6, is_7 = False, False, False, False, False, False, False, False
             for digit_word_nom in word_noms:
                 digit, word_nom = digit_word_nom
                 word = self.add_okurigana(word_nom)
@@ -306,6 +324,13 @@ class Kanji:
                                 else:
                                     meaning = meaning.replace(f'^{digit + word_nom}', f' Ср. {word}({word_reading})')
                                     is_1 = True
+                            case "2":
+                                if is_2:
+                                    meaning = meaning.replace(f'^{digit + word_nom}', f', {word}({word_reading})')
+                                else:
+                                    meaning = meaning.replace(
+                                        f'^{digit + word_nom}', f' то же, что и {word}({word_reading})')
+                                    is_2 = True
                             case "3":
                                 if is_3:
                                     meaning = meaning.replace(f'^{digit + word_nom}', f', {word}({word_reading})')
@@ -364,6 +389,8 @@ class Kanji:
             meaning = meaning.replace('*5', '~で ')
         if "*6" in meaning:
             meaning = meaning.replace('*6', '~と ')
+        if "*7" in meaning:
+            meaning = meaning.replace('*7', '~たる ')
         if "*8" in meaning:
             meaning = meaning.replace('*8', '~して ')
         if "*=05" in meaning:
@@ -377,6 +404,8 @@ class Kanji:
             meaning = meaning.replace('*=21', '~な(~の)')  # а нельзя было сделать '*2 (*3)'???
         if "*=23" in meaning:
             meaning = meaning.replace('*=23', '~ならず ')
+        if "*=24" in meaning:
+            meaning = meaning.replace('*=24', '~な[る] ')
         if "*=26" in meaning:
             meaning = meaning.replace('*=26', '~なしの')
         if "*=28" in meaning:
