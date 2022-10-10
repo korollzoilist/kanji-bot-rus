@@ -59,9 +59,6 @@ class Kanji:
             for column in self.cur.execute("PRAGMA table_info(Tango)").fetchall():
                 info_dict['compounds'][compound[0]][column[1]] = compound[column[0]]
 
-            info_dict['compounds'][compound[0]]['Russian'] = self.adjust_meaning(
-                info_dict['compounds'][compound[0]]['Russian'])
-
             info_dict['compounds'][compound[0]]['okurigana'] = self.add_okurigana(
                 info_dict['compounds'][compound[0]]['Nomer'])
 
@@ -83,7 +80,7 @@ class Kanji:
                             okurigana, k_okurigana = re.split(r"\^", okurigana)
                             reading = Kanji.to_kana(reading[:-len(okurigana + k_okurigana)]) + '\.' + Kanji.to_kana(
                                 okurigana) + \
-                                Kanji.to_kana(k_okurigana, is_katakana=True)
+                                      Kanji.to_kana(k_okurigana, is_katakana=True)
                         else:
                             if "qi" in okurigana:
                                 okurigana = okurigana[2:]
@@ -127,11 +124,13 @@ class Kanji:
             for compound_meaning in compound_meanings:
                 if nums := re.findall(r"\((\d+)\)", compound_meaning):
                     if "0" in nums:
-                        compound_meaning = compound_meaning.replace("(0)", info_dict['compound_readings'][0])
+                        compound_meaning = compound_meaning.replace("(0)", f"({info_dict['compound_readings'][0]})")
                     else:
                         for num in nums:
                             compound_meaning = compound_meaning.replace(f"({num})",
-                                                                        info_dict['compound_readings'][int(num) - 1])
+                                                                        "(" +
+                                                                        info_dict['compound_readings'][int(num) - 1] +
+                                                                        ")")
                 if len(info_dict['compounds']) != 1:
                     compound_meaning = self.adjust_meaning(compound_meaning)
                     info_dict['compound_meanings'].append(compound_meaning.capitalize())
@@ -223,7 +222,7 @@ class Kanji:
     def escape_chars(text: str) -> str:
         escaped_chars = ('*', '~', '-', '.', '(', ')', '[', ']', '>', '!', '#')
         for char in escaped_chars:
-            text = text.replace(char, '\\'+char)
+            text = text.replace(char, '\\' + char)
 
         return text
 
@@ -377,95 +376,162 @@ class Kanji:
                     meaning = meaning.replace(f"''{kana}''", Kanji.to_kana(kana, is_katakana=True))
                 else:
                     meaning = meaning.replace(f"''{kana}''", Kanji.to_kana(kana))
-        if "*1" in meaning:
-            meaning = meaning.replace('*1', '~する ')
-        if "*2" in meaning:
-            meaning = meaning.replace('*2', '~な ')
-        if "*3" in meaning:
-            meaning = meaning.replace('*3', '~の ')
-        if "*4" in meaning:
-            meaning = meaning.replace('*4', '~に ')
-        if "*5" in meaning:
-            meaning = meaning.replace('*5', '~で ')
-        if "*6" in meaning:
-            meaning = meaning.replace('*6', '~と ')
-        if "*7" in meaning:
-            meaning = meaning.replace('*7', '~たる ')
-        if "*8" in meaning:
-            meaning = meaning.replace('*8', '~して ')
-        if "*=05" in meaning:
-            meaning = meaning.replace('*=05', '~がしてある')
-        if "*=06" in meaning:
-            meaning = meaning.replace('*=06', '~がする')
-        if "*=10" in meaning:
-            meaning = meaning.replace('*=10', '~で (~に)')  # какой же идиотизм... можно же сделать '*5(*4)',
-            # чтоб потом вместо '*=30' написать '*4(*5)'
-        if "*=21" in meaning:
-            meaning = meaning.replace('*=21', '~な(~の)')  # а нельзя было сделать '*2 (*3)'???
-        if "*=23" in meaning:
-            meaning = meaning.replace('*=23', '~ならず ')
-        if "*=24" in meaning:
-            meaning = meaning.replace('*=24', '~な[る] ')
-        if "*=26" in meaning:
-            meaning = meaning.replace('*=26', '~なしの')
-        if "*=28" in meaning:
-            meaning = meaning.replace('*=28', '~なく ')
-        if "*=29" in meaning:
-            meaning = meaning.replace('*=29', '~に (~は)')
-        if "*=30" in meaning:
-            meaning = meaning.replace('*=30', '~に (~で)')
-        if "*=31" in meaning:
-            meaning = meaning.replace('*=31', '~にも')
-        if "*=32" in meaning:
-            meaning = meaning.replace('*=32', '~的(てき)　')
-        if "*=33" in meaning:
-            meaning = meaning.replace('*=33', '~にして')
-        if "*=46" in meaning:
-            meaning = meaning.replace('*=46', '~のした ')
-        if "*=47" in meaning:
-            meaning = meaning.replace('*=47', '~のしない ')
-        if "*=48" in meaning:
-            meaning = meaning.replace('*=48', '~のする ')
-        if "*=53" in meaning:
-            meaning = meaning.replace('*=53', '~をやる ')
-        if "*=62" in meaning:
-            meaning = meaning.replace('*=62', '~となる ')
-        if "*=84" in meaning:
-            meaning = meaning.replace('*=84', '~をして ')
-        if "**0" in meaning:
-            meaning = meaning.replace("**0", "~をする ")
-        if "**1" in meaning:
-            meaning = meaning.replace('**1', '~がある ')
-        if "**2" in meaning:
-            meaning = meaning.replace('**2', '~のある ')
-        if "**3" in meaning:
-            meaning = meaning.replace('**3', '~のない ')
-        if "**4" in meaning:
-            meaning = meaning.replace('**4', '~である ')
-        if "**6" in meaning:
-            meaning = meaning.replace('**6', '~だ')
-        if "**7" in meaning:
-            meaning = meaning.replace('**7', '~にする ')
-        if "**8" in meaning:
-            meaning = meaning.replace('**8', '~になる ')
-        if "**9" in meaning:
-            meaning = meaning.replace('**9', '~として ')
-        if "***7" in meaning:
-            meaning = meaning.replace('***7', '~がしている ')
-        if "*-3" in meaning:
-            meaning = meaning.replace('*-3', ' (-の)')
-        if "*-7" in meaning:
-            meaning = meaning.replace('*-7', ' (-を)')
-        if "#" in meaning:
-            meaning = meaning.replace('#', '_ ')
-        if "@0" in meaning:
-            meaning = meaning.replace('@0', '_употребляется фонетически_')
-        if "@3" in meaning:
-            meaning = meaning.replace('@3', ' и т.д.')
-        if "@4" in meaning:
-            meaning = meaning.replace('@4', 'В сочетаниях непродуктивен')
-        if "@6" in meaning:
-            meaning = meaning.replace('@6', 'в сочетаниях то же')
+        double_asterisk_dict = {'**0': '~をする ',
+                                '**1': '~がある ',
+                                '**2': '~のある ',
+                                '**3': '~のない ',
+                                '**4': '~である ',
+                                '**5': '~です',
+                                '**6': '~だ',
+                                '**7': '~にする ',
+                                '**8': '~になる ',
+                                '**9': '~として '}
+
+        triple_asterisk_dict = {'***0': '~なる ',
+                                '***1': '~から',
+                                '***2': '~まで ',
+                                '***3': '~[も',
+                                '***4': '~[に',
+                                '***5': '~とする ',
+                                '***6': '~より ',
+                                '***7': '~がしている ',
+                                '***8': '~とした　',
+                                '***9': '~としている '}
+
+        asterisk_hyphen_dict = {'*-0': '(は) ',
+                                '*-1': '(から) ',
+                                '*-3': ' (-の) ',
+                                '*-4': '~(に) ',
+                                '*-5': '(で) ',
+                                '*-6': '(-と) ',
+                                '*-7': ' (-を) ',
+                                '*-8': '(-が) ',
+                                '*-9': '(する) '}
+
+        asterisk_equal_dict = {'*=00': '~! ',
+                               '*=01': '~ある ',
+                               '*=02': '~あって ',
+                               '*=03': '~がない ',
+                               '*=04': '~があって ',
+                               '*=05': '~がしてある ',
+                               '*=06': '~がする ',
+                               '*=07': '~でも ',
+                               '*=08': '~では ',
+                               '*=09': '~でない ',
+                               '*=10': '~で (~に) ',
+                               '*=11': '~ですか ',
+                               '*=12': '~でした',
+                               '*=13': '~でする　',
+                               '*=14': '~か ',
+                               '*=15': '~までも ',
+                               '*=16': '~もない ',
+                               '*=17': '~も[ない]',
+                               '*=18': '~もなく ',
+                               '*=19': '~ながら ',
+                               '*=20': '~ない ',
+                               '*=21': '~な(~の) ',
+                               '*=22': '~ならざる ',
+                               '*=23': '~ならず ',
+                               '*=24': '~な[る] ',
+                               '*=25': '~なさい ',
+                               '*=26': '~なしの ',
+                               '*=27': '~なき ',
+                               '*=28': '~なく ',
+                               '*=29': '~に (~は) ',
+                               '*=30': '~に (~で) ',
+                               '*=31': '~にも ',
+                               '*=32': '~的(てき)　',
+                               '*=33': '~にして ',
+                               '*=34': '~に[して] ',
+                               '*=35': '~にない ',
+                               '*=36': '~になって',
+                               '*=37': '~になっている ',
+                               '*=38': '~にある ',
+                               '*=39': '~にさせる ',
+                               '*=40': '~にいる ',
+                               '*=41': '~にならない ',
+                               '*=42': '~されて　',
+                               '*=43': '~[に]する ',
+                               '*=44': '~にやる　',
+                               '*=45': '~[の]ある ',
+                               '*=46': '~のした ',
+                               '*=47': '~のしない ',
+                               '*=48': '~のする ',
+                               '*=49': '~を ',
+                               '*=50': '~[を]する ',
+                               '*=51': '~をしている　',
+                               '*=52': '~をした ',
+                               '*=53': '~をやる ',
+                               '*=54': '~させる ',
+                               '*=55': '~される ',
+                               '*=56': '~してある ',
+                               '*=57': '~す　',
+                               '*=58': '~[します ',
+                               '*=59': '~しない ',
+                               '*=60': '~せずに ',
+                               '*=61': '~せる ',
+                               '*=62': '~となる ',
+                               '*=63': '~とさせる ',
+                               '*=65': '~[と]した ',
+                               '*=66': '~と[して] ',
+                               '*=67': '~[とも',
+                               '*=68': '~[と]もすれば ',
+                               '*=70': '~と[なく] ',
+                               '*=71': '~へ ',
+                               '*=72': '~されている ',
+                               '*=73': '~がごとし ',
+                               '*=74': '~だから　',
+                               '*=75': '~だけの ',
+                               '*=78': '~す[る] ',
+                               '*=79': '~ならば ',
+                               '*=80': '~ならぬ ',
+                               '*=81': '~ならしめる ',
+                               '*=82': '~に[なって]　',
+                               '*=83': '~をしない ',
+                               '*=84': '~をして ',
+                               '*=85': '~しながら ',
+                               '*=86': '~すべき ',
+                               '*=87': '~すれば ',
+                               '*=88': '~しても　',
+                               '*=91': '~となって　',
+                               '*=93': '~において '}
+
+        asterisk_dict = {'*0': '~した ',
+                         '*1': '~する ',
+                         '*2': '~な ',
+                         '*3': '~の ',
+                         '*4': '~に ',
+                         '*5': '~で ',
+                         '*6': '~と ',
+                         '*7': '~たる ',
+                         '*8': '~して ',
+                         '*9': '~している '}
+
+        at_dict = {'@0': '_употребляется фонетически_', '@3': ' и т.д.', '@4': 'В сочетаниях непродуктивен',
+                   '@6': 'в сочетаниях то же'}
+
+        greater_than_dict = {'>1': '_мужское имя_',
+                             '>2': '_женское имя_',
+                             '>3': '_фамилия_',
+                             '>4': '_псевдоним_',
+                             '>5': '_топоним_',
+                             '>11': '_мужские имена_',
+                             '>12': '_мужское либо женское имя_',
+                             '>13': '_мужское имя либо фамилия_',
+                             '>21': '_женское либо мужское имя_',
+                             '>22': '_женские имена_',
+                             '>23': '_женское имя либо фамилия_',
+                             '>30': '_имя либо фамилия_',
+                             '>33': '_фамилии_',
+                             '>35': '_фамилия и топоним_',
+                             '>44': '_псевдонимы_',
+                             '>50': '_имя либо топоним_',
+                             '>53': '_фамилии и топонимы_',
+                             '>55': '_топонимы_'}
+        dicts = triple_asterisk_dict | double_asterisk_dict | asterisk_dict | asterisk_hyphen_dict |\
+            asterisk_equal_dict | at_dict | greater_than_dict
+        for values in dicts.items():
+            meaning = meaning.replace(values[0], values[1])
         if "@" in meaning:
             meaning = meaning.replace("@", "")
         if "=" in meaning:
@@ -476,16 +542,6 @@ class Kanji:
             meaning = meaning.replace('}', '')
         if "+" in meaning:
             meaning = meaning.replace('+', '')
-        if ">1" in meaning:
-            meaning = meaning.replace('>1', '_мужское имя_')
-        if ">2" in meaning:
-            meaning = meaning.replace('>2', '_женское имя_')
-        if ">3" in meaning:
-            meaning = meaning.replace('>3', '_фамилия_')
-        if ">4" in meaning:
-            meaning = meaning.replace('>4', '_псевдоним_')
-        if ">5" in meaning:
-            meaning = meaning.replace('>5', '_топоним_')
 
         return Kanji.escape_chars(meaning)
 
@@ -510,8 +566,8 @@ class Kanji:
                     kana = kana.replace(f"#{nomer}#", '')
             okuriganas = {int(num): Kanji.to_kana(
                 okurigana) for num, okurigana in re.findall(r"(\d)([a-z^]+)", kana) if okurigana[0] != "^"} | {
-                int(num): Kanji.to_kana(okurigana[1:], is_katakana=True)
-                for num, okurigana in re.findall(r"(\d)([a-z^]+)", kana) if okurigana[0] == "^"}
+                             int(num): Kanji.to_kana(okurigana[1:], is_katakana=True)
+                             for num, okurigana in re.findall(r"(\d)([a-z^]+)", kana) if okurigana[0] == "^"}
             word = kanjis
             for num, kanji in enumerate(kanjis):
                 if num + 1 in okuriganas.keys():
