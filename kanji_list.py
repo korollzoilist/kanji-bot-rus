@@ -59,17 +59,20 @@ class Kanji:
             for column in self.cur.execute("PRAGMA table_info(Tango)").fetchall():
                 info_dict['compounds'][compound[0]][column[1]] = compound[column[0]]
 
-            info_dict['compounds'][compound[0]]['okurigana'] = self.add_okurigana(
-                info_dict['compounds'][compound[0]]['Nomer'])
+            info_dict['compounds'][compound[0]]['okurigana'] = Kanji.escape_chars(self.add_okurigana(
+                info_dict['compounds'][compound[0]]['Nomer']))
 
             info_dict['compounds'][compound[0]]['reading'] = Kanji.to_kana(
                 info_dict['compounds'][compound[0]]['Reading'])
+
+            info_dict['compounds'][compound[0]]['Russian'] = self.adjust_meaning(
+                info_dict['compounds'][compound[0]]['Russian'])
 
         info_dict["readings_meanings"] = []
         for example in info_dict['compounds'].values():
             if example['K2'] == 0 and example['K3'] == 0 and example['K4'] == 0:
                 reading = example["Reading"]
-                meaning = self.adjust_meaning(example['Russian'])
+                meaning = example['Russian']
                 if example["Kana"]:
                     if example["Kana"][0] != "0":
                         okurigana = re.findall(r"[1-4](.+)", example["Kana"])[0]
@@ -111,9 +114,9 @@ class Kanji:
                     else:
                         for num in nums:
                             compound_meaning = compound_meaning.replace(f"({num})",
-                                                                        "(" +
+                                                                        "\(" +
                                                                         info_dict['compound_readings'][int(num) - 1] +
-                                                                        ")")
+                                                                        "\)")
                 if len(info_dict['compounds']) != 1:
                     compound_meaning = self.adjust_meaning(compound_meaning)
                     info_dict['compound_meanings'].append(compound_meaning.capitalize())
@@ -128,9 +131,9 @@ class Kanji:
                     else:
                         for num in nums:
                             compound_meaning = compound_meaning.replace(f"({num})",
-                                                                        "(" +
+                                                                        "\(" +
                                                                         info_dict['compound_readings'][int(num) - 1] +
-                                                                        ")")
+                                                                        "\)")
                 if len(info_dict['compounds']) != 1:
                     compound_meaning = self.adjust_meaning(compound_meaning)
                     info_dict['compound_meanings'].append(compound_meaning.capitalize())
@@ -179,7 +182,7 @@ class Kanji:
                 if word[-1] == romkan.to_katakana(word)[-1] and word[-1] != "々":
                     word = word[:-1] + "ッ"
 
-                return romkan.to_katakana(word)
+                return Kanji.escape_chars(romkan.to_katakana(word))
             elif is_onyomi:
                 for symbol in reading:
                     match symbol:
@@ -227,7 +230,7 @@ class Kanji:
         return text
 
     def adjust_meaning(self, meaning: str) -> str:
-        meaning = meaning.replace('\\', '').replace('$', '').replace('_', '')
+        meaning = meaning.replace('\\', '').replace('$', '').replace('#', '_')
         if meaning.startswith(">>"):
             words = re.findall(r"^(\S+)", meaning) + re.findall(r"г\.(\S+)", meaning)
             for word in words:
@@ -376,17 +379,6 @@ class Kanji:
                     meaning = meaning.replace(f"''{kana}''", Kanji.to_kana(kana, is_katakana=True))
                 else:
                     meaning = meaning.replace(f"''{kana}''", Kanji.to_kana(kana))
-        double_asterisk_dict = {'**0': '~をする ',
-                                '**1': '~がある ',
-                                '**2': '~のある ',
-                                '**3': '~のない ',
-                                '**4': '~である ',
-                                '**5': '~です',
-                                '**6': '~だ',
-                                '**7': '~にする ',
-                                '**8': '~になる ',
-                                '**9': '~として '}
-
         triple_asterisk_dict = {'***0': '~なる ',
                                 '***1': '~から',
                                 '***2': '~まで ',
@@ -397,6 +389,17 @@ class Kanji:
                                 '***7': '~がしている ',
                                 '***8': '~とした　',
                                 '***9': '~としている '}
+
+        double_asterisk_dict = {'**0': '~をする ',
+                                '**1': '~がある ',
+                                '**2': '~のある ',
+                                '**3': '~のない ',
+                                '**4': '~である ',
+                                '**5': '~です',
+                                '**6': '~だ',
+                                '**7': '~にする ',
+                                '**8': '~になる ',
+                                '**9': '~として '}
 
         asterisk_hyphen_dict = {'*-0': '(は) ',
                                 '*-1': '(から) ',
@@ -532,16 +535,8 @@ class Kanji:
             asterisk_equal_dict | at_dict | greater_than_dict
         for values in dicts.items():
             meaning = meaning.replace(values[0], values[1])
-        if "@" in meaning:
-            meaning = meaning.replace("@", "")
-        if "=" in meaning:
-            meaning = meaning.replace("=", " ")
-        if "{" in meaning:
-            meaning = meaning.replace('{', '')
-        if "}" in meaning:
-            meaning = meaning.replace('}', '')
-        if "+" in meaning:
-            meaning = meaning.replace('+', '')
+        for char in '@', '=', '{', '}', '+':
+            meaning = meaning.replace(char, '')
 
         return Kanji.escape_chars(meaning)
 
@@ -575,7 +570,7 @@ class Kanji:
         elif kana:
             word = Kanji.to_kana(kana)
 
-        return Kanji.escape_chars(word)
+        return word
 
     def __del__(self):
         self.con.close()
