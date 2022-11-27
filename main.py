@@ -1,18 +1,15 @@
-from config import AIOGRAM_API_TOKEN
 import logging
-import re
-from kanji_list import Kanji
+import os
+from kanji import Kanji
 from aiogram import Bot, Dispatcher, executor, types
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters import Text
 from aiogram.dispatcher.filters.state import State, StatesGroup
 from aiogram.types import InputFile
-import romkan
-import sys
 
 logging.basicConfig(level=logging.INFO)
-
+AIOGRAM_API_TOKEN = os.environ.get("AIOGRAM_API_TOKEN")
 
 bot = Bot(token=AIOGRAM_API_TOKEN)
 storage = MemoryStorage()
