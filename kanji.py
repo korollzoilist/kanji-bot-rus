@@ -12,10 +12,10 @@ class Kanji:
         self.chars = sorted([uncd[0] for uncd in self.cur.execute("SELECT Uncd FROM Kanji").fetchall()])
 
         if len(self.kanji) > 1:
-            raise TypeError("There should only be one character")
+            raise TypeError("Не более одного символа")
 
         if not ord(self.kanji) in self.chars:
-            raise ValueError("It is not kanji")
+            raise ValueError("Это не кандзи")
 
         self.info = self.cur.execute(f"SELECT * FROM kanji WHERE Uncd = {ord(self.kanji)}").fetchall()[0]
 
