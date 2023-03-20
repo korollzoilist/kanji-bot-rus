@@ -116,8 +116,15 @@ async def kanji_info(message: types.Message, state: FSMContext):
                                    + " " + compound["Russian"] for compound in kanji_data['compounds'].values()])
             await message.answer(compounds, parse_mode='MarkdownV2')
 
-    gif = InputFile.from_url(f"http://kakijun.jp/gif/{kakijun}.gif")
-    await message.answer_document(gif)
+    file = None
+    if (gif := f"0_{kanji_data['Nomer']}.gif") in os.listdir("SOD"):
+        file = InputFile(f"SOD/{gif}")
+    elif (gif := f"1_{kanji_data['Nomer']}.gif") in os.listdir("SOD"):
+        file = InputFile(f"SOD/{gif}")
+    elif (gif := f"2_{kanji_data['Nomer']}.gif") in os.listdir("SOD"):
+        file = InputFile(f"SOD/{gif}")
+
+    await message.answer_animation(file)
 
 
 @dp.message_handler(commands='giveusatank')

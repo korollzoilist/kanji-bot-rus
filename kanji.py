@@ -2,7 +2,6 @@ import re
 import sqlite3
 import romkan
 
-
 class Kanji:
 
     def __init__(self, kanji):
@@ -59,8 +58,8 @@ class Kanji:
             for column in self.cur.execute("PRAGMA table_info(Tango)").fetchall():
                 info_dict['compounds'][compound[0]][column[1]] = compound[column[0]]
 
-            info_dict['compounds'][compound[0]]['okurigana'] = Kanji.escape_chars(self.add_okurigana(
-                info_dict['compounds'][compound[0]]['Nomer']))
+            info_dict['compounds'][compound[0]]['okurigana'] = self.add_okurigana(
+                int(info_dict['compounds'][compound[0]]['Nomer']))
 
             info_dict['compounds'][compound[0]]['reading'] = Kanji.to_kana(
                 info_dict['compounds'][compound[0]]['Reading'])
@@ -93,7 +92,7 @@ class Kanji:
                                 else:
                                     reading = Kanji.to_kana(reading) + "\.々"
                             else:
-                                reading = Kanji.to_kana(reading[:-len(okurigana)]) + '\.' + Kanji.to_kana(okurigana)
+                                reading = Kanji.to_kana(reading[:-len(okurigana)]) + "\." + Kanji.to_kana(okurigana)
 
                         info_dict["readings_meanings"].append(reading + "\n" + meaning)
 
@@ -166,7 +165,7 @@ class Kanji:
     @staticmethod
     def to_kana(reading: str, is_katakana=False, is_onyomi=False) -> str:
         if reading:
-            reading = re.findall(r"([a-zа-я:;,/\- ]+)(?=\*\(\*)*", reading)[0].replace(
+            reading = re.findall(r"([a-zа-я:;,/\- ()\[\]]+)(?=\*\(\*)*", reading)[0].replace(
                 'nn', 'nnn').replace("Q1", "").replace('qi', '々')
             word = ""
             prev_symbol = None
@@ -179,7 +178,7 @@ class Kanji:
                             word += symbol
 
                 word = romkan.to_kunrei(word)
-                if word[-1] == romkan.to_katakana(word)[-1] and word[-1] != "々":
+                if word[-1] == romkan.to_katakana(word)[-1] and not re.findall(r"[々*()\[\]]", word):
                     word = word[:-1] + "ッ"
 
                 return Kanji.escape_chars(romkan.to_katakana(word))
@@ -214,7 +213,7 @@ class Kanji:
                     prev_symbol = symbol
 
                 word = romkan.to_kunrei(word)
-                if word[-1] == romkan.to_hiragana(word)[-1] and not re.findall(r"[々*]", word):
+                if word[-1] == romkan.to_hiragana(word)[-1] and not re.findall(r"[々*()\[\]]", word):
                     word = word[:-1] + "っ"
 
                 return Kanji.escape_chars(romkan.to_hiragana(word))
@@ -546,27 +545,32 @@ class Kanji:
             self.cur.execute(f"SELECT Uncd FROM Kanji WHERE Nomer = {kanji}").fetchone()[0]) for kanji in nomers]
         return nomers, kanjis
 
-    def add_okurigana(self, word_nom: str) -> str:
+    def add_okurigana(self, word_nom: int) -> str:
         word = ""
         k_1, k_2, k_3, k_4, kana = self.cur.execute(
-            f"SELECT K1, K2, K3, K4, Kana FROM Tango WHERE Nomer = {int(word_nom)}").fetchone()
+            f"SELECT K1, K2, K3, K4, Kana FROM Tango WHERE Nomer = {word_nom}").fetchone()
         kanjis = ''.join([chr(
             self.cur.execute(f"SELECT Uncd FROM Kanji WHERE Nomer = {kanji}").fetchone()[0]) for kanji in [
             k_1, k_2, k_3, k_4] if kanji != 0 and kanji != -1])
         if kanjis:
             if "#" in kana:
                 nomers, extra_kanjis = self.add_kanji(kana)
-                kanjis += ''.join(extra_kanjis)
                 for nomer in nomers:
                     kana = kana.replace(f"#{nomer}#", '')
+                else:
+                    kanjis += ''.join(extra_kanjis)
             okuriganas = {int(num): Kanji.to_kana(
-                okurigana) for num, okurigana in re.findall(r"(\d)([a-z^]+)", kana) if okurigana[0] != "^"} | {
-                             int(num): Kanji.to_kana(okurigana[1:], is_katakana=True)
-                             for num, okurigana in re.findall(r"(\d)([a-z^]+)", kana) if okurigana[0] == "^"}
+                okurigana) for num, okurigana in re.findall(r"(\d)([a-z^()\[\]]+)", kana)} | {
+                int(num): Kanji.to_kana(
+                    okurigana, is_katakana=True) for num, okurigana in re.findall(r"(\d)\^([a-z^()\[\]]+)", kana)
+            }
             word = kanjis
             for num, kanji in enumerate(kanjis):
                 if num + 1 in okuriganas.keys():
                     word = word.replace(kanji, kanji + okuriganas[num + 1])
+                    kanjis = kanjis[:num] + kanjis[num+1:]
+            if "0" in kana:
+                word = okuriganas[0] + word
         elif kana:
             word = Kanji.to_kana(kana)
 
