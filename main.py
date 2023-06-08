@@ -153,6 +153,6 @@ async def on_shutdown(dp):
     await bot.delete_webhook()
 
 if __name__ == '__main__':
-    executor.start_webhook(dispatcher=dp, webhook_path=WEBHOOK_URL, on_startup=on_startup,
+    executor.start_webhook(dispatcher=dp, webhook_path=WEBHOOK_URL_PATH, on_startup=on_startup,
                            on_shutdown=on_shutdown, skip_updates=True)
     # executor.start_polling(dp, skip_updates=True)
