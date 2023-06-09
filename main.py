@@ -1,25 +1,24 @@
+from aiohttp import web
 import logging
 import os
 from kanji import Kanji
-from aiogram import Bot, Dispatcher, executor, types
+from aiogram import Bot, Dispatcher, types
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
-from aiogram.contrib.middlewares.logging import LoggingMiddleware
 from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters import Text
 from aiogram.dispatcher.filters.state import State, StatesGroup
 from aiogram.types import InputFile
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)
 AIOGRAM_API_TOKEN = os.environ.get("AIOGRAM_API_TOKEN")
-WEBHOOK_HOST = os.environ.get("CYCLIC_URL")
-WEBHOOK_PORT = 443
-WEBHOOK_URL_PATH = f"/webhooks"
-WEBHOOK_URL = f"https://{WEBHOOK_HOST}:{WEBHOOK_PORT}{WEBHOOK_URL_PATH}"
+WEBHOOK_CYCLIC = os.environ.get("CYCLIC_URL")
+WEBHOOK_PATH = f"/{AIOGRAM_API_TOKEN}"
 
 bot = Bot(token=AIOGRAM_API_TOKEN)
+Bot.set_current(bot)
 storage = MemoryStorage()
 dp = Dispatcher(bot, storage=storage)
-dp.middleware.setup(LoggingMiddleware())
+app = web.Application()
 
 
 class KanjiSearch(StatesGroup):
@@ -143,16 +142,44 @@ async def echo(message: types.Message):
     await message.answer(message.text)
 
 
-async def on_startup(dp):
-    await bot.set_webhook(WEBHOOK_URL)
-    logging.info("Webhook is working...")
+async def set_webhook():
+    webhook_uri = f"{WEBHOOK_CYCLIC}{WEBHOOK_PATH}"
+    await bot.set_webhook(webhook_uri)
 
 
-async def on_shutdown(dp):
-    logging.info("Webhook shutdown...")
-    await bot.delete_webhook()
+async def delete_webhook():
+    webhook_uri = f"{WEBHOOK_CYCLIC}{WEBHOOK_PATH}"
+    await bot.delete_webhook(webhook_uri)
+
+
+async def on_startup(_):
+    await set_webhook()
+
+
+async def on_shutdown(_):
+    await delete_webhook()
+
+
+async def handle_webhook(request):
+    url = str(request.url)
+    index = url.rfind('/')
+    token = url[index+1:]
+
+    if token == AIOGRAM_API_TOKEN:
+        request_data = await request.json()
+        update = types.Update(**request_data)
+
+        await dp.process_update(update)
+
+        return web.Response()
+    else:
+        return web.Response(status=403)
+
+
+app.router.add_post(f'/{AIOGRAM_API_TOKEN}', handle_webhook)
+
 
 if __name__ == '__main__':
-    executor.start_webhook(dispatcher=dp, webhook_path=WEBHOOK_URL_PATH, on_startup=on_startup,
-                           on_shutdown=on_shutdown, skip_updates=True)
-    # executor.start_polling(dp, skip_updates=True)
+    app.on_startup.append(on_startup)
+    app.on_shutdown.append(on_shutdown)
+    web.run_app(app, host='0.0.0.0', port=8080)
