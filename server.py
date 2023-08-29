@@ -1,4 +1,3 @@
-from aiohttp import web
 import logging
 import os
 from kanji import Kanji
@@ -8,17 +7,19 @@ from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters import Text
 from aiogram.dispatcher.filters.state import State, StatesGroup
 from aiogram.types import InputFile
+from aiogram.utils.executor import start_webhook
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 AIOGRAM_API_TOKEN = os.environ.get("AIOGRAM_API_TOKEN")
-WEBHOOK_CYCLIC = os.environ.get("CYCLIC_URL")
-WEBHOOK_PATH = f"/{AIOGRAM_API_TOKEN}"
+WEBHOOK_URL = os.getenv('CYCLIC_URL', 'http://localhost:8181') + "/webhook/"
+WEBHOOK_PATH = "/webhook/"
+WEBAPP_HOST = "0.0.0.0"
+WEBAPP_PORT = 8181
+
 
 bot = Bot(token=AIOGRAM_API_TOKEN)
-Bot.set_current(bot)
 storage = MemoryStorage()
 dp = Dispatcher(bot, storage=storage)
-app = web.Application()
 
 
 class KanjiSearch(StatesGroup):
@@ -142,44 +143,24 @@ async def echo(message: types.Message):
     await message.answer(message.text)
 
 
-async def set_webhook():
-    webhook_uri = f"{WEBHOOK_CYCLIC}{WEBHOOK_PATH}"
-    await bot.set_webhook(webhook_uri)
+async def on_startup():
+    await bot.set_webhook(WEBHOOK_URL)
 
 
-async def delete_webhook():
-    webhook_uri = f"{WEBHOOK_CYCLIC}{WEBHOOK_PATH}"
-    await bot.delete_webhook(webhook_uri)
-
-
-async def on_startup(_):
-    await set_webhook()
-
-
-async def on_shutdown(_):
-    await delete_webhook()
-
-
-async def handle_webhook(request):
-    url = str(request.url)
-    index = url.rfind('/')
-    token = url[index+1:]
-
-    if token == AIOGRAM_API_TOKEN:
-        request_data = await request.json()
-        update = types.Update(**request_data)
-
-        await dp.process_update(update)
-
-        return web.Response()
-    else:
-        return web.Response(status=403)
-
-
-app.router.add_post(f'/{AIOGRAM_API_TOKEN}', handle_webhook)
+async def on_shutdown():
+    logging.warning('Shutting down..')
+    await bot.delete_webhook()
+    await dp.storage.close()
+    await dp.storage.wait_closed()
 
 
 if __name__ == '__main__':
-    app.on_startup.append(on_startup)
-    app.on_shutdown.append(on_shutdown)
-    web.run_app(app, host='0.0.0.0', port=8080)
+    start_webhook(
+            dispatcher=dp,
+            webhook_path=WEBHOOK_PATH,
+            on_startup=on_startup,
+            on_shutdown=on_shutdown,
+            skip_updates=True,
+            host=WEBAPP_HOST,
+            port=WEBAPP_PORT,
+        )
