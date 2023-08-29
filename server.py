@@ -14,7 +14,7 @@ AIOGRAM_API_TOKEN = os.environ.get("AIOGRAM_API_TOKEN")
 WEBHOOK_URL = os.getenv('CYCLIC_URL', 'http://localhost:8181') + "/webhook/"
 WEBHOOK_PATH = "/webhook/"
 WEBAPP_HOST = "0.0.0.0"
-WEBAPP_PORT = 8181
+WEBAPP_PORT = 3001
 
 
 bot = Bot(token=AIOGRAM_API_TOKEN)
