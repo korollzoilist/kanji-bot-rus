@@ -7,6 +7,7 @@ from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters import Text
 from aiogram.dispatcher.filters.state import State, StatesGroup
 from aiogram.types import InputFile
+from keep_alive import keep_alive
 
 logging.basicConfig(level=logging.INFO)
 AIOGRAM_API_TOKEN = os.environ.get("AIOGRAM_API_TOKEN")
@@ -14,6 +15,7 @@ AIOGRAM_API_TOKEN = os.environ.get("AIOGRAM_API_TOKEN")
 bot = Bot(token=AIOGRAM_API_TOKEN)
 storage = MemoryStorage()
 dp = Dispatcher(bot, storage=storage)
+keep_alive()
 
 
 class KanjiSearch(StatesGroup):
