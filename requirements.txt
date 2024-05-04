@@ -1,2 +1,2 @@
-aiogram
+aiogram==2.25.2
 git+https://github.com/Bel-Shazzar/python-romkan.git#egg=romkan
