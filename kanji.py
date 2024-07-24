@@ -657,8 +657,8 @@ class Kanji:
                              '>50': '_имя либо топоним_',
                              '>53': '_фамилии и топонимы_',
                              '>55': '_топонимы_'}
-        dicts = triple_asterisk_dict | double_asterisk_dict | asterisk_dict | asterisk_hyphen_dict |\
-            asterisk_equal_dict | at_dict | greater_than_dict
+        dicts = {**triple_asterisk_dict, **double_asterisk_dict, **asterisk_dict, **asterisk_hyphen_dict,
+            **asterisk_equal_dict, **at_dict, **greater_than_dict}
         for values in dicts.items():
             meaning = meaning.replace(values[0], values[1])
         for char in '@', '=', '{', '}', '+':
@@ -686,11 +686,13 @@ class Kanji:
                     kana = kana.replace(f"#{nomer}#", '')
                 else:
                     kanjis += ''.join(extra_kanjis)
-            okuriganas = {int(num): Kanji.to_kana(
-                okurigana) for num, okurigana in re.findall(r"(\d)([a-z^()\[\]]+)", kana)} | {
+            okuriganas1 = {int(num): Kanji.to_kana(
+                okurigana) for num, okurigana in re.findall(r"(\d)([a-z^()\[\]]+)", kana)}
+            okuriganas2 = {
                 int(num): Kanji.to_kana(
                     okurigana, is_katakana=True) for num, okurigana in re.findall(r"(\d)\^([a-z^()\[\]]+)", kana)
             }
+            okuriganas = {**okuriganas1, **okuriganas2}
             word = kanjis
             for num, kanji in enumerate(kanjis):
                 if num + 1 in okuriganas.keys():
