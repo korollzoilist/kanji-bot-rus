@@ -150,7 +150,16 @@ class Kanji:
                 except ValueError:
                     pass
 
-                match num:
+                if num == "N":
+                    info_dict['compounds_examples']["nanori"].append(example)
+                else:
+                    try:
+                        info_dict['compounds_examples'][num].append(example)
+                    except KeyError:
+                        info_dict['compounds_examples'][num] = []
+                        info_dict['compounds_examples'][num].append(example)
+
+                '''match num:
                     case "N":
                         info_dict['compounds_examples']["nanori"].append(example)
                     case _:
@@ -158,7 +167,7 @@ class Kanji:
                             info_dict['compounds_examples'][num].append(example)
                         except KeyError:
                             info_dict['compounds_examples'][num] = []
-                            info_dict['compounds_examples'][num].append(example)
+                            info_dict['compounds_examples'][num].append(example)'''
 
         return info_dict
 
@@ -171,11 +180,16 @@ class Kanji:
             prev_symbol = None
             if is_katakana:
                 for symbol in reading:
-                    match symbol:
+                    if symbol == ":":
+                        word += "ー"
+                    else:
+                        word += symbol
+
+                    '''match symbol:
                         case ":":
                             word += "ー"
                         case _:
-                            word += symbol
+                            word += symbol'''
 
                 word = romkan.to_kunrei(word)
                 if word[-1] == romkan.to_katakana(word)[-1] and not re.findall(r"[々*()\[\]]", word):
@@ -184,7 +198,15 @@ class Kanji:
                 return Kanji.escape_chars(romkan.to_katakana(word))
             elif is_onyomi:
                 for symbol in reading:
-                    match symbol:
+                    if symbol == ":":
+                        if prev_symbol == "o":
+                            word += "u"
+                        else:
+                            word += prev_symbol
+                    else:
+                        word += symbol
+
+                    '''match symbol:
                         case ":":
                             match prev_symbol:
                                 case "o":
@@ -192,7 +214,7 @@ class Kanji:
                                 case _:
                                     word += prev_symbol
                         case _:
-                            word += symbol
+                            word += symbol'''
 
                     prev_symbol = symbol
 
@@ -200,7 +222,15 @@ class Kanji:
                 return Kanji.escape_chars(romkan.to_katakana(word))
             else:
                 for symbol in reading:
-                    match symbol:
+                    if symbol == ":":
+                        if prev_symbol == "o":
+                            word += "u"
+                        else:
+                            word += prev_symbol
+                    else:
+                        word += symbol
+
+                    '''match symbol:
                         case ":":
                             match prev_symbol:
                                 case "o":
@@ -208,7 +238,7 @@ class Kanji:
                                 case _:
                                     word += prev_symbol
                         case _:
-                            word += symbol
+                            word += symbol'''
 
                     prev_symbol = symbol
 
@@ -256,7 +286,37 @@ class Kanji:
             for digit_nomer in nomers:
                 digit, nomer = digit_nomer
                 char = chr(self.cur.execute(f'SELECT Uncd FROM Kanji WHERE Nomer = {nomer}').fetchone()[0])
-                match digit:
+                if digit == "0":
+                    if is_0:
+                        meaning = meaning.replace(f'^{digit}-{nomer}', f', {char}')
+                    else:
+                        meaning = meaning.replace(f'^{digit}-{nomer}', f' См. {char}')
+                elif digit == "1":
+                    if is_1:
+                        meaning = meaning.replace(f'^{digit}-{nomer}', f', {char}')
+                    else:
+                        meaning = meaning.replace(f'^{digit}-{nomer}', f' Ср. {char}')
+                        is_1 = True
+                elif digit == "3":
+                    if is_3:
+                        meaning = meaning.replace(f'^{digit}-{nomer}', f', {char}')
+                    else:
+                        meaning = meaning.replace(f'^{digit}-{nomer}', f'; реже {char}')
+                        is_3 = True
+                elif digit == "4":
+                    if is_4:
+                        meaning = meaning.replace(f'^{digit}-{nomer}', f', {char}')
+                    else:
+                        meaning = meaning.replace(f'^{digit}-{nomer}', f'; иначе {char}')
+                        is_4 = True
+                elif digit == "5":
+                    if is_5:
+                        meaning = meaning.replace(f'^{digit}-{nomer}', f', {char}')
+                    else:
+                        meaning = meaning.replace(f'^{digit}-{nomer}', f'; чаще {char}')
+                        is_5 = True
+
+                '''match digit:
                     case "0":
                         if is_0:
                             meaning = meaning.replace(f'^{digit}-{nomer}', f', {char}')
@@ -285,12 +345,25 @@ class Kanji:
                             meaning = meaning.replace(f'^{digit}-{nomer}', f', {char}')
                         else:
                             meaning = meaning.replace(f'^{digit}-{nomer}', f'; чаще {char}')
-                            is_5 = True
+                            is_5 = True'''
         if digit_nomers := re.findall(r"\{\^\^(\d)(\d+)(.*)}", meaning):
             is_1, is_7 = False, False
             for digit, nomer, info in digit_nomers:
                 char = chr(self.cur.execute(f"SELECT Uncd FROM Kanji WHERE Nomer = {nomer}").fetchone()[0])
-                match digit:
+                if digit == "1":
+                    if is_1:
+                        meaning = meaning.replace('{^^' + digit + nomer + info + '}', f', {char + info}')
+                    else:
+                        meaning = meaning.replace('{^^' + digit + nomer + info + '}', f'; ср. {char + info}')
+                        is_1 = True
+                elif digit == "7":
+                    if is_7:
+                        meaning = meaning.replace('{^^' + digit + nomer + info + '}', f', {char + info}')
+                    else:
+                        meaning = meaning.replace('{^^' + digit + nomer + info + '}', f'; антоним: {char + info}')
+                        is_7 = True
+
+                '''match digit:
                     case "1":
                         if is_1:
                             meaning = meaning.replace('{^^' + digit + nomer + info + '}', f', {char + info}')
@@ -302,7 +375,7 @@ class Kanji:
                             meaning = meaning.replace('{^^' + digit + nomer + info + '}', f', {char + info}')
                         else:
                             meaning = meaning.replace('{^^' + digit + nomer + info + '}', f'; антоним: {char + info}')
-                            is_7 = True
+                            is_7 = True'''
         if word_noms := re.findall(r"\^+(\d)(\d+)", meaning):
             is_0, is_1, is_2, is_3, is_4, is_5, is_6, is_7 = False, False, False, False, False, False, False, False
             for digit_word_nom in word_noms:
@@ -311,7 +384,61 @@ class Kanji:
                 reading = self.cur.execute(
                     f"SELECT Reading FROM Tango WHERE Nomer = {int(word_nom)}").fetchone()[0]
                 word_reading = Kanji.to_kana(re.findall(r"^(.*)\**", reading)[0])
-                match len(re.findall(rf"(\^+){digit + word_nom}", meaning)):
+                length = len(re.findall(rf"(\^+){digit + word_nom}", meaning))
+                if length == 1:
+                    if digit == "0":
+                        if is_0:
+                            meaning = meaning.replace(f'^{digit + word_nom}', f', {word}({word_reading})')
+                        else:
+                            meaning = meaning.replace(f'^{digit + word_nom}', f' См. {word}({word_reading})')
+                    elif digit == "1":
+                        if is_1:
+                            meaning = meaning.replace(f'^{digit + word_nom}', f', {word}({word_reading})')
+                        else:
+                            meaning = meaning.replace(f'^{digit + word_nom}', f' Ср. {word}({word_reading})')
+                            is_1 = True
+                    elif digit == "2":
+                        if is_2:
+                            meaning = meaning.replace(f'^{digit + word_nom}', f', {word}({word_reading})')
+                        else:
+                            meaning = meaning.replace(
+                                f'^{digit + word_nom}', f' то же, что и {word}({word_reading})')
+                            is_2 = True
+                    elif digit == "3":
+                        if is_3:
+                            meaning = meaning.replace(f'^{digit + word_nom}', f', {word}({word_reading})')
+                        else:
+                            meaning = meaning.replace(f'^{digit + word_nom}', f'; реже {word}({word_reading})')
+                            is_3 = True
+                    elif digit == "4":
+                        if is_4:
+                            meaning = meaning.replace(f'^{digit + word_nom}', f', {word}({word_reading})')
+                        else:
+                            meaning = meaning.replace(f'^{digit + word_nom}', f'; иначе {word}({word_reading})')
+                            is_4 = True
+                    elif digit == "5":
+                        if is_5:
+                            meaning = meaning.replace(f'^{digit + word_nom}', f', {word}({word_reading})')
+                        else:
+                            meaning = meaning.replace(f'^{digit + word_nom}', f'; чаще {word}({word_reading})')
+                            is_5 = True
+                    elif digit == "6":
+                        if is_6:
+                            meaning = meaning.replace(f'^{digit + word_nom}', f', {word}({word_reading})')
+                        else:
+                            meaning = meaning.replace(
+                                f'^{digit + word_nom}', f'; синоним: {word}({word_reading})')
+                            is_6 = True
+                    elif digit == "7":
+                        if is_7:
+                            meaning = meaning.replace(f'^{digit + word_nom}', f', {word}({word_reading})')
+                        else:
+                            meaning = meaning.replace(
+                                f'^{digit + word_nom}', f'; антоним: {word}({word_reading})')
+                            is_7 = True
+                elif length == 2:
+                    meaning = meaning.replace(f'^^{digit + word_nom}', f'; сокр. от {word}')
+                '''match len(re.findall(rf"(\^+){digit + word_nom}", meaning)):
                     case 1:
                         match digit:
                             case "0":
@@ -365,7 +492,7 @@ class Kanji:
                                         f'^{digit + word_nom}', f'; антоним: {word}({word_reading})')
                                     is_7 = True
                     case 2:
-                        meaning = meaning.replace(f'^^{digit + word_nom}', f'; сокр. от {word}')
+                        meaning = meaning.replace(f'^^{digit + word_nom}', f'; сокр. от {word}')'''
         if "qi" in meaning:
             meaning = meaning.replace('qi', '々')
         if "^^" in meaning:
