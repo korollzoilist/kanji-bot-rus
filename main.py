@@ -80,13 +80,13 @@ async def kanji_info(message: types.Message, state: FSMContext):
     print(kanji.get_info())
 
     kanji_data = kanji.get_info()
-    kakijun = kanji_data['SodKakijun']
 
+    rusnick = (escape_markdown(kanji_data['RusNick']) or
+               "значение для этого кандзи отсутствует в базе данных или ещё не добавлено")
     readings_meanings = '\n'.join(kanji_data['readings_meanings'])
-    await message.answer(readings_meanings)
 
-    await message.answer(f"{kanji_data['kanji']}: {escape_markdown(kanji_data['RusNick'])}\n"
-                         f"Онъёми: {kanji_data['onyomi']}\n"
+    await message.answer(f"{kanji_data['kanji']}: {rusnick}\n"
+                         f"Онъёми: {kanji_data['onyomi'] if kanji_data['onyomi'] else 'нет/неизвестно'}\n"
                          + escape_markdown(readings_meanings), parse_mode='MarkdownV2')
 
     if kanji_data['compounds']:
@@ -132,7 +132,10 @@ async def kanji_info(message: types.Message, state: FSMContext):
     elif (gif := f"2_{kanji_data['Nomer']}.gif") in os.listdir("SOD"):
         file = InputFile(f"SOD/{gif}")
 
-    await message.answer_animation(file)
+    if file:
+        await message.answer_animation(file)
+    else:
+        await message.answer("Для этого кандзи нет диаграммы начертания")
 
 
 @dp.message_handler(commands='giveusatank')
