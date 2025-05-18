@@ -160,12 +160,6 @@ class Kanji:
                             info_dict['compounds_examples'][num] = []
                             info_dict['compounds_examples'][num].append(example)
 
-        '''for key in [
-            "Kunyomi", "Onyomi", "Kana", "Compounds", "Russian", "Reading",
-            "Comp", "Nomer", "RusNick", "SodKakijun"
-        ]:
-            info_dict.pop(key, None)'''
-
         return info_dict
 
     @staticmethod
