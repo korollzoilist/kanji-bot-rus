@@ -577,9 +577,3 @@ class Kanji:
 
     def __del__(self):
         self.con.close()
-
-
-if __name__ == '__main__':
-    kanji_char = input('Kanji here: ')
-    kanji = Kanji(kanji_char)
-    print(kanji.get_info())
