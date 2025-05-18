@@ -38,7 +38,7 @@ class Kanji:
                     info_dict['compound_readings'].append(
                         Kanji.to_kana(compound_reading.replace(' ', '').replace('_', ', реже ').lower()))
 
-        info_dict['RusNick'] = Kanji.escape_chars(info_dict['RusNick'].replace('#', ', ').replace('*', ''))
+        info_dict['RusNick'] = info_dict['RusNick'].replace('#', ', ').replace('*', '')
 
         if info_dict['Onyomi'] != "-":
             onyomis = re.split(r',', info_dict['Onyomi'])
@@ -80,7 +80,7 @@ class Kanji:
                             reading = reading[:index]
                         if "^" in okurigana:
                             okurigana, k_okurigana = re.split(r"\^", okurigana)
-                            reading = Kanji.to_kana(reading[:-len(okurigana + k_okurigana)]) + '\.' + Kanji.to_kana(
+                            reading = Kanji.to_kana(reading[:-len(okurigana + k_okurigana)]) + '.' + Kanji.to_kana(
                                 okurigana) + \
                                       Kanji.to_kana(k_okurigana, is_katakana=True)
                         else:
@@ -88,11 +88,11 @@ class Kanji:
                                 okurigana = okurigana[2:]
                                 if okurigana:
                                     reading = Kanji.to_kana(
-                                        reading[:-len(okurigana)]) + '\.々' + Kanji.to_kana(okurigana)
+                                        reading[:-len(okurigana)]) + '.々' + Kanji.to_kana(okurigana)
                                 else:
-                                    reading = Kanji.to_kana(reading) + "\.々"
+                                    reading = Kanji.to_kana(reading) + ".々"
                             else:
-                                reading = Kanji.to_kana(reading[:-len(okurigana)]) + "\." + Kanji.to_kana(okurigana)
+                                reading = Kanji.to_kana(reading[:-len(okurigana)]) + "." + Kanji.to_kana(okurigana)
 
                         info_dict["readings_meanings"].append(reading + "\n" + meaning)
 
@@ -130,9 +130,9 @@ class Kanji:
                     else:
                         for num in nums:
                             compound_meaning = compound_meaning.replace(f"({num})",
-                                                                        "\(" +
+                                                                        "(" +
                                                                         info_dict['compound_readings'][int(num) - 1] +
-                                                                        "\)")
+                                                                        ")")
                 if len(info_dict['compounds']) != 1:
                     compound_meaning = self.adjust_meaning(compound_meaning)
                     info_dict['compound_meanings'].append(compound_meaning.capitalize())
@@ -160,6 +160,12 @@ class Kanji:
                             info_dict['compounds_examples'][num] = []
                             info_dict['compounds_examples'][num].append(example)
 
+        '''for key in [
+            "Kunyomi", "Onyomi", "Kana", "Compounds", "Russian", "Reading",
+            "Comp", "Nomer", "RusNick", "SodKakijun"
+        ]:
+            info_dict.pop(key, None)'''
+
         return info_dict
 
     @staticmethod
@@ -181,7 +187,7 @@ class Kanji:
                 if word[-1] == romkan.to_katakana(word)[-1] and not re.findall(r"[々*()\[\]]", word):
                     word = word[:-1] + "ッ"
 
-                return Kanji.escape_chars(romkan.to_katakana(word))
+                return romkan.to_katakana(word)
             elif is_onyomi:
                 for symbol in reading:
                     match symbol:
@@ -197,7 +203,7 @@ class Kanji:
                     prev_symbol = symbol
 
                 word = romkan.to_kunrei(word)
-                return Kanji.escape_chars(romkan.to_katakana(word))
+                return romkan.to_katakana(word)
             else:
                 for symbol in reading:
                     match symbol:
@@ -216,17 +222,10 @@ class Kanji:
                 if word[-1] == romkan.to_hiragana(word)[-1] and not re.findall(r"[々*()\[\]]", word):
                     word = word[:-1] + "っ"
 
-                return Kanji.escape_chars(romkan.to_hiragana(word))
+                return romkan.to_hiragana(word)
 
         return ""
 
-    @staticmethod
-    def escape_chars(text: str) -> str:
-        escaped_chars = ('*', '~', '-', '.', '(', ')', '[', ']', '>', '!', '#')
-        for char in escaped_chars:
-            text = text.replace(char, '\\' + char)
-
-        return text
 
     def adjust_meaning(self, meaning: str) -> str:
         meaning = meaning.replace('\\', '').replace('$', '').replace('#', '_')
@@ -537,7 +536,7 @@ class Kanji:
         for char in '@', '=', '{', '}', '+':
             meaning = meaning.replace(char, '')
 
-        return Kanji.escape_chars(meaning)
+        return meaning
 
     def add_kanji(self, kana: str) -> tuple:
         nomers = re.findall(r"#(\d+)#", kana)
@@ -578,3 +577,9 @@ class Kanji:
 
     def __del__(self):
         self.con.close()
+
+
+if __name__ == '__main__':
+    kanji_char = input('Kanji here: ')
+    kanji = Kanji(kanji_char)
+    print(kanji.get_info())

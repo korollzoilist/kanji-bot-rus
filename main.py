@@ -8,7 +8,7 @@ from aiogram.dispatcher.filters import Text
 from aiogram.dispatcher.filters.state import State, StatesGroup
 from aiogram.types import InputFile
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)
 AIOGRAM_API_TOKEN = os.environ.get("AIOGRAM_API_TOKEN")
 
 bot = Bot(token=AIOGRAM_API_TOKEN)
@@ -60,6 +60,12 @@ async def cancel(message: types.Message, state: FSMContext):
 
 @dp.message_handler(state=KanjiSearch.search)
 async def kanji_info(message: types.Message, state: FSMContext):
+    def escape_markdown(text: str) -> str:
+        escape_chars = ('_', '*', '[', ']', '(', ')', '~', '`', '>', '#', '+', '-', '=', '|', '{', '}', '.', '!')
+        for char in escape_chars:
+            text = text.replace(char, f'\\{char}')
+        return text
+
     try:
         kanji = Kanji(message.text)
     except TypeError:
@@ -77,10 +83,11 @@ async def kanji_info(message: types.Message, state: FSMContext):
     kakijun = kanji_data['SodKakijun']
 
     readings_meanings = '\n'.join(kanji_data['readings_meanings'])
+    await message.answer(readings_meanings)
 
-    await message.answer(f"{kanji_data['kanji']}: {kanji_data['RusNick']}\n"
+    await message.answer(f"{kanji_data['kanji']}: {escape_markdown(kanji_data['RusNick'])}\n"
                          f"Онъёми: {kanji_data['onyomi']}\n"
-                         + readings_meanings, parse_mode='MarkdownV2')
+                         + escape_markdown(readings_meanings), parse_mode='MarkdownV2')
 
     if kanji_data['compounds']:
 
@@ -93,28 +100,29 @@ async def kanji_info(message: types.Message, state: FSMContext):
                     compounds = [kanji_data['compounds'][com_index] for com_index in kanji_data['compounds_examples'][
                         str(index+1)]]
                     compounds = '\n'.join(
-                        [compound['okurigana'] + "\(" + compound["reading"].replace('*', '') + "\)" +
+                        [compound['okurigana'] + "(" + compound["reading"].replace('*', '') + ")" +
                          " " + compound["Russian"] for compound in compounds])
-                    await message.answer(str(compound_meaning + ':\n' + compounds), parse_mode='MarkdownV2')
+                    await message.answer(escape_markdown(str(compound_meaning + ':\n' + compounds)),
+                                         parse_mode='MarkdownV2')
             else:
                 compounds = [kanji_data['compounds'][com_index] for com_index in kanji_data['compounds_examples'][
                     str(1)]]
                 compounds = '\n'.join(
-                    [compound['okurigana'] + "\(" + compound["reading"].replace('*', '') + "\)"
+                    [compound['okurigana'] + "(" + compound["reading"].replace('*', '') + ")"
                         + " " + compound["Russian"] for compound in compounds])
-                await message.answer(compounds, parse_mode='MarkdownV2')
+                await message.answer(escape_markdown(compounds), parse_mode='MarkdownV2')
 
             if nanori_nums := kanji_data['compounds_examples']['nanori']:
                 await message.answer("В именах и топологических названиях:")
                 nanori = [kanji_data['compounds'][nanori_num] for nanori_num in nanori_nums]
-                nanori = '\n'.join([compound['okurigana'] + "\(" + compound["reading"].replace('*', '') + "\)"
+                nanori = '\n'.join([compound['okurigana'] + "(" + compound["reading"].replace('*', '') + ")"
                                     + " " + compound["Russian"] for compound in nanori])
-                await message.answer(nanori, parse_mode='MarkdownV2')
+                await message.answer(escape_markdown(nanori), parse_mode='MarkdownV2')
 
         else:
-            compounds = '\n'.join([compound['okurigana'] + "\(" + compound["Reading"].replace('*', '') + "\)"
+            compounds = '\n'.join([compound['okurigana'] + "(" + compound["Reading"].replace('*', '') + ")"
                                    + " " + compound["Russian"] for compound in kanji_data['compounds'].values()])
-            await message.answer(compounds, parse_mode='MarkdownV2')
+            await message.answer(escape_markdown(compounds), parse_mode='MarkdownV2')
 
     file = None
     if (gif := f"0_{kanji_data['Nomer']}.gif") in os.listdir("SOD"):
