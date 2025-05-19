@@ -8,7 +8,7 @@ from aiogram.dispatcher.filters import Text
 from aiogram.dispatcher.filters.state import State, StatesGroup
 from aiogram.types import InputFile
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 AIOGRAM_API_TOKEN = os.environ.get("AIOGRAM_API_TOKEN")
 
 bot = Bot(token=AIOGRAM_API_TOKEN)
@@ -18,6 +18,13 @@ dp = Dispatcher(bot, storage=storage)
 
 class KanjiSearch(StatesGroup):
     search = State()
+
+
+def escape_markdown(text: str) -> str:
+    escape_chars = ('_', '*', '[', ']', '(', ')', '~', '`', '>', '#', '+', '-', '=', '|', '{', '}', '.', '!')
+    for char in escape_chars:
+        text = text.replace(char, f'\\{char}')
+    return text
 
 
 @dp.message_handler(commands=["start"])
@@ -60,11 +67,6 @@ async def cancel(message: types.Message, state: FSMContext):
 
 @dp.message_handler(state=KanjiSearch.search)
 async def kanji_info(message: types.Message, state: FSMContext):
-    def escape_markdown(text: str) -> str:
-        escape_chars = ('_', '*', '[', ']', '(', ')', '~', '`', '>', '#', '+', '-', '=', '|', '{', '}', '.', '!')
-        for char in escape_chars:
-            text = text.replace(char, f'\\{char}')
-        return text
 
     try:
         kanji = Kanji(message.text)
@@ -83,9 +85,10 @@ async def kanji_info(message: types.Message, state: FSMContext):
 
     rusnick = (escape_markdown(kanji_data['RusNick']) or
                "значение для этого кандзи отсутствует в базе данных или ещё не добавлено")
+    grade = escape_markdown(kanji_data.get("grade", ""))
     readings_meanings = '\n'.join(kanji_data['readings_meanings'])
 
-    await message.answer(f"{kanji_data['kanji']}: {rusnick}\n"
+    await message.answer(f"{grade}\n{kanji_data['kanji']}: {rusnick}\n"
                          f"Онъёми: {kanji_data['onyomi'] if kanji_data['onyomi'] else 'нет/неизвестно'}\n"
                          + escape_markdown(readings_meanings), parse_mode='MarkdownV2')
 
@@ -136,6 +139,25 @@ async def kanji_info(message: types.Message, state: FSMContext):
         await message.answer_animation(file)
     else:
         await message.answer("Для этого кандзи нет диаграммы начертания")
+
+
+@dp.message_handler(commands='grades')
+async def grades(message: types.Message):
+    text = ("(1-10) класс - класс в школах Японии, в котором учат данный иероглиф\n"
+            "+++ - иероглиф не включен в \"Дзёё кандзи\", но весьма употребим и вполне мог бы туда входить\n"
+            "++ - иероглиф достаточно употребим и вероятно претендовал бы на попадание в список \"Дзёё кандзи\"\n"
+            "+ - иероглиф не очень употребим, но знание его может пригодиться\n"
+            "(++) - иероглиф как таковой малоупотребим, но весьма употребимо слово, которое он записывает "
+            "(в современном японском языке для записи этого слова чаще используется кана\n"
+            "(+) - иероглиф как таковой малоупотребим, но полезно знать слово, которое он записывает\n"
+            "И ++ - иероглиф часто используется для записи имен собственных\n"
+            "И + - иероглиф встречается в именах собственных\n"
+            "+\\x - иероглиф малоупотребим, но все же встречается\n"
+            "x - иероглиф малоупотребим и редок\n"
+            "xx - иероглиф крайне редок\n"
+            "xxx - иероглиф можно считать практически несуществующим\n"
+            "Ф - форма или вариант другого иероглифа")
+    await message.answer(text)
 
 
 @dp.message_handler(commands='giveusatank')

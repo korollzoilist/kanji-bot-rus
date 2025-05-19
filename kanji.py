@@ -2,6 +2,7 @@ import re
 import sqlite3
 import romkan
 
+
 class Kanji:
 
     def __init__(self, kanji):
@@ -113,9 +114,9 @@ class Kanji:
                     else:
                         for num in nums:
                             compound_meaning = compound_meaning.replace(f"({num})",
-                                                                        "\(" +
+                                                                        "(" +
                                                                         info_dict['compound_readings'][int(num) - 1] +
-                                                                        "\)")
+                                                                        ")")
                 if len(info_dict['compounds']) != 1:
                     compound_meaning = self.adjust_meaning(compound_meaning)
                     info_dict['compound_meanings'].append(compound_meaning.capitalize())
@@ -136,6 +137,8 @@ class Kanji:
                 if len(info_dict['compounds']) != 1:
                     compound_meaning = self.adjust_meaning(compound_meaning)
                     info_dict['compound_meanings'].append(compound_meaning.capitalize())
+
+        info_dict['grade'] = Kanji.define_grade(info_dict['Utility'])
 
         compounds_examples = re.split(r',', info_dict['Compounds'].replace(
             '#', '').replace('*', '').replace('^', '').replace('&', '').replace("@", ""))
@@ -220,6 +223,28 @@ class Kanji:
 
         return ""
 
+    @staticmethod
+    def define_grade(utility: int) -> str:
+        if utility in range(1,11):
+            return f"{utility} класс"
+        elif utility in range(11,14):
+            return "+"*(14-utility)
+        elif utility in (14, 15):
+            return "(" + "+"*(16-utility) + ")"
+        elif utility in (16, 17):
+            return "И " + "+"*(18-utility)
+        elif utility == 18:
+            return "+\\x"
+        elif utility in range(19, 22):
+            return "x"*(utility-18)
+        elif utility in range(31, 52):
+            return "Ф"
+        elif utility == 55:
+            return "Радикал"
+        elif utility in range(61, 64):
+            return "Нет в словаре, доступны черновые данные"
+        else:
+            raise ValueError
 
     def adjust_meaning(self, meaning: str) -> str:
         meaning = meaning.replace('\\', '').replace('$', '').replace('#', '_')
