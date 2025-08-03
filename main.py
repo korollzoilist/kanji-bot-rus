@@ -79,18 +79,26 @@ async def kanji_info(message: types.Message, state: FSMContext):
         raise
     else:
         await state.finish()
-    print(kanji.get_info())
 
     kanji_data = kanji.get_info()
+
+    print(kanji_data)
 
     rusnick = (escape_markdown(kanji_data['RusNick']) or
                "значение для этого кандзи отсутствует в базе данных или ещё не добавлено")
     grade = escape_markdown(kanji_data.get("grade", ""))
     readings_meanings = '\n'.join(kanji_data['readings_meanings'])
 
-    await message.answer(f"{grade}\n{kanji_data['kanji']}: {rusnick}\n"
+    extra_1, extra_2 = "", ""
+    if extra_meanings := kanji_data.get('extras', ""):
+        if extra_meanings['^']:
+            extra_1 = "\(" + ";".join(extra_meanings['^']) + "\)"
+        if extra_meanings["*"]:
+            extra_2 = "\[" + ";".join(extra_meanings['*']) + "\]"
+
+    await message.answer(f"{grade}\n*{kanji_data['kanji']}*: {rusnick} {extra_1}\n"
                          f"Онъёми: {kanji_data['onyomi'] if kanji_data['onyomi'] else 'нет/неизвестно'}\n"
-                         + escape_markdown(readings_meanings), parse_mode='MarkdownV2')
+                         + escape_markdown(readings_meanings) + "\n" + extra_2, parse_mode='MarkdownV2')
 
     if kanji_data['compounds']:
 
@@ -103,8 +111,8 @@ async def kanji_info(message: types.Message, state: FSMContext):
                     compounds = [kanji_data['compounds'][com_index] for com_index in kanji_data['compounds_examples'][
                         str(index+1)]]
                     compounds = '\n'.join(
-                        [compound['okurigana'] + "(" + compound["reading"].replace('*', '') + ")" +
-                         " " + compound["Russian"] for compound in compounds])
+                        [compound['okurigana'] + " (" + compound["reading"].replace('*', '') + ")" +
+                         " — " + Kanji.format_meaning(compound["Russian"]) for compound in compounds])
                     await message.answer(escape_markdown(str(compound_meaning + ':\n' + compounds)),
                                          parse_mode='MarkdownV2')
             else:
@@ -112,19 +120,20 @@ async def kanji_info(message: types.Message, state: FSMContext):
                     str(1)]]
                 compounds = '\n'.join(
                     [compound['okurigana'] + "(" + compound["reading"].replace('*', '') + ")"
-                        + " " + compound["Russian"] for compound in compounds])
+                        + " — " + Kanji.format_meaning(compound["Russian"]) for compound in compounds])
                 await message.answer(escape_markdown(compounds), parse_mode='MarkdownV2')
 
             if nanori_nums := kanji_data['compounds_examples']['nanori']:
                 await message.answer("В именах и топологических названиях:")
                 nanori = [kanji_data['compounds'][nanori_num] for nanori_num in nanori_nums]
                 nanori = '\n'.join([compound['okurigana'] + "(" + compound["reading"].replace('*', '') + ")"
-                                    + " " + compound["Russian"] for compound in nanori])
+                                    + " — " + Kanji.format_meaning(compound["Russian"]) for compound in nanori])
                 await message.answer(escape_markdown(nanori), parse_mode='MarkdownV2')
 
         else:
             compounds = '\n'.join([compound['okurigana'] + "(" + compound["Reading"].replace('*', '') + ")"
-                                   + " " + compound["Russian"] for compound in kanji_data['compounds'].values()])
+                                   + " — " + Kanji.format_meaning(compound["Russian"]) for compound in
+                                   kanji_data['compounds'].values()])
             await message.answer(escape_markdown(compounds), parse_mode='MarkdownV2')
 
     file = None
