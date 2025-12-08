@@ -2,6 +2,7 @@ import re
 import sqlite3
 import romkan
 
+
 class Kanji:
 
     def __init__(self, kanji):
@@ -38,7 +39,7 @@ class Kanji:
                     info_dict['compound_readings'].append(
                         Kanji.to_kana(compound_reading.replace(' ', '').replace('_', ', реже ').lower()))
 
-        info_dict['RusNick'] = Kanji.escape_chars(info_dict['RusNick'].replace('#', ', ').replace('*', ''))
+        info_dict['RusNick'] = info_dict['RusNick'].replace('#', ', ').replace('*', '')
 
         if info_dict['Onyomi'] != "-":
             onyomis = re.split(r',', info_dict['Onyomi'])
@@ -80,7 +81,7 @@ class Kanji:
                             reading = reading[:index]
                         if "^" in okurigana:
                             okurigana, k_okurigana = re.split(r"\^", okurigana)
-                            reading = Kanji.to_kana(reading[:-len(okurigana + k_okurigana)]) + '\.' + Kanji.to_kana(
+                            reading = Kanji.to_kana(reading[:-len(okurigana + k_okurigana)]) + '.' + Kanji.to_kana(
                                 okurigana) + \
                                       Kanji.to_kana(k_okurigana, is_katakana=True)
                         else:
@@ -88,23 +89,23 @@ class Kanji:
                                 okurigana = okurigana[2:]
                                 if okurigana:
                                     reading = Kanji.to_kana(
-                                        reading[:-len(okurigana)]) + '\.々' + Kanji.to_kana(okurigana)
+                                        reading[:-len(okurigana)]) + '.々' + Kanji.to_kana(okurigana)
                                 else:
-                                    reading = Kanji.to_kana(reading) + "\.々"
+                                    reading = Kanji.to_kana(reading) + ".々"
                             else:
-                                reading = Kanji.to_kana(reading[:-len(okurigana)]) + "\." + Kanji.to_kana(okurigana)
+                                reading = Kanji.to_kana(reading[:-len(okurigana)]) + "." + Kanji.to_kana(okurigana)
 
-                        info_dict["readings_meanings"].append(reading + "\n" + meaning)
+                        info_dict["readings_meanings"].append(reading + "\n" + Kanji.format_meaning(meaning))
 
                 else:
                     reading = Kanji.to_kana(reading)
-                    info_dict["readings_meanings"].append(reading + "\n" + meaning)
+                    info_dict["readings_meanings"].append(reading + "\n" + Kanji.format_meaning(meaning))
 
         try:
             meanings, compound_meanings = re.split(r'\|', info_dict['Russian'])
         except ValueError:
-            compound_meanings = [meaning.replace('\\', '').replace('/', '') for meaning in re.findall(
-                r"([\S\s.#;][^/]*)", info_dict['Russian'])]
+            compound_meanings = [Kanji.format_meaning(meaning.replace('\\', '').replace('/', '')) for meaning in
+                                 re.findall(r"([\S\s.#;][^/]*)", info_dict['Russian'])]
             info_dict['compound_meanings'] = []
             for compound_meaning in compound_meanings:
                 if nums := re.findall(r"\((\d+)\)", compound_meaning):
@@ -113,9 +114,9 @@ class Kanji:
                     else:
                         for num in nums:
                             compound_meaning = compound_meaning.replace(f"({num})",
-                                                                        "\(" +
+                                                                        "(" +
                                                                         info_dict['compound_readings'][int(num) - 1] +
-                                                                        "\)")
+                                                                        ")")
                 if len(info_dict['compounds']) != 1:
                     compound_meaning = self.adjust_meaning(compound_meaning)
                     info_dict['compound_meanings'].append(compound_meaning.capitalize())
@@ -130,12 +131,27 @@ class Kanji:
                     else:
                         for num in nums:
                             compound_meaning = compound_meaning.replace(f"({num})",
-                                                                        "\(" +
+                                                                        "(" +
                                                                         info_dict['compound_readings'][int(num) - 1] +
-                                                                        "\)")
+                                                                        ")")
                 if len(info_dict['compounds']) != 1:
                     compound_meaning = self.adjust_meaning(compound_meaning)
                     info_dict['compound_meanings'].append(compound_meaning.capitalize())
+
+            if extras := re.findall(r'(?<!\^)([*^]\d+)', re.sub(r'{[^}]*}', '', meanings)):
+                extras_dict = {"*0": "Устаревшая форма: ", "*1": "Оригинальная форма: ", "*2": "Упрощенная форма: ",
+                               "*3": "Вариантная форма: ", "*4": "Редкая форма: ", "*5": "В документах: ",
+                               "*6": "Синоним и омоним: ", "*7": "Ошибочная форма: ",
+                               "^0": "См. ", "^1": "Ср. ", "^3": "Реже ", "^4": "Иначе", "^5": "Чаще",
+                               "^7": "Антоним: ", "^8": "Не путать с "}
+                info_dict['extras'] = {'*': [], '^': []}
+                for extra in extras:
+                    extra_type, extra_nomer = extra[:2], extra[2:]
+                    info_dict['extras'][extra_type[0]].append(extras_dict[extra_type] + chr(
+                        int(self.cur.execute(f"SELECT Uncd FROM Kanji WHERE Nomer={extra_nomer};").fetchone()[0])))
+
+
+        info_dict['grade'] = Kanji.define_grade(info_dict['Utility'])
 
         compounds_examples = re.split(r',', info_dict['Compounds'].replace(
             '#', '').replace('*', '').replace('^', '').replace('&', '').replace("@", ""))
@@ -181,7 +197,7 @@ class Kanji:
                 if word[-1] == romkan.to_katakana(word)[-1] and not re.findall(r"[々*()\[\]]", word):
                     word = word[:-1] + "ッ"
 
-                return Kanji.escape_chars(romkan.to_katakana(word))
+                return romkan.to_katakana(word)
             elif is_onyomi:
                 for symbol in reading:
                     match symbol:
@@ -197,7 +213,7 @@ class Kanji:
                     prev_symbol = symbol
 
                 word = romkan.to_kunrei(word)
-                return Kanji.escape_chars(romkan.to_katakana(word))
+                return romkan.to_katakana(word)
             else:
                 for symbol in reading:
                     match symbol:
@@ -216,17 +232,37 @@ class Kanji:
                 if word[-1] == romkan.to_hiragana(word)[-1] and not re.findall(r"[々*()\[\]]", word):
                     word = word[:-1] + "っ"
 
-                return Kanji.escape_chars(romkan.to_hiragana(word))
+                return romkan.to_hiragana(word)
 
         return ""
 
     @staticmethod
-    def escape_chars(text: str) -> str:
-        escaped_chars = ('*', '~', '-', '.', '(', ')', '[', ']', '>', '!', '#')
-        for char in escaped_chars:
-            text = text.replace(char, '\\' + char)
+    def define_grade(utility: int) -> str:
+        if utility in range(1, 11):
+            return f"{utility} класс"
+        elif utility in range(11, 14):
+            return "+" * (14 - utility)
+        elif utility in (14, 15):
+            return "(" + "+" * (16 - utility) + ")"
+        elif utility in (16, 17):
+            return "И " + "+" * (18 - utility)
+        elif utility == 18:
+            return "+\\x"
+        elif utility in range(19, 22):
+            return "x" * (utility - 18)
+        elif utility in range(31, 52):
+            return "Ф"
+        elif utility == 55:
+            return "Радикал"
+        elif utility in range(61, 64):
+            return "Нет в словаре, доступны черновые данные"
+        else:
+            raise ValueError
 
-        return text
+    @staticmethod
+    def format_meaning(meaning: str) -> str:
+        meaning = result = re.sub(r"^(\d+)\s+", r"\1 - ", meaning, flags=re.MULTILINE)
+        return meaning
 
     def adjust_meaning(self, meaning: str) -> str:
         meaning = meaning.replace('\\', '').replace('$', '').replace('#', '_')
@@ -530,14 +566,14 @@ class Kanji:
                              '>50': '_имя либо топоним_',
                              '>53': '_фамилии и топонимы_',
                              '>55': '_топонимы_'}
-        dicts = triple_asterisk_dict | double_asterisk_dict | asterisk_dict | asterisk_hyphen_dict |\
-            asterisk_equal_dict | at_dict | greater_than_dict
+        dicts = triple_asterisk_dict | double_asterisk_dict | asterisk_dict | asterisk_hyphen_dict | \
+                asterisk_equal_dict | at_dict | greater_than_dict
         for values in dicts.items():
             meaning = meaning.replace(values[0], values[1])
         for char in '@', '=', '{', '}', '+':
             meaning = meaning.replace(char, '')
 
-        return Kanji.escape_chars(meaning)
+        return meaning
 
     def add_kanji(self, kana: str) -> tuple:
         nomers = re.findall(r"#(\d+)#", kana)
@@ -561,14 +597,15 @@ class Kanji:
                     kanjis += ''.join(extra_kanjis)
             okuriganas = {int(num): Kanji.to_kana(
                 okurigana) for num, okurigana in re.findall(r"(\d)([a-z^()\[\]]+)", kana)} | {
-                int(num): Kanji.to_kana(
-                    okurigana, is_katakana=True) for num, okurigana in re.findall(r"(\d)\^([a-z^()\[\]]+)", kana)
-            }
+                             int(num): Kanji.to_kana(
+                                 okurigana, is_katakana=True) for num, okurigana in
+                             re.findall(r"(\d)\^([a-z^()\[\]]+)", kana)
+                         }
             word = kanjis
             for num, kanji in enumerate(kanjis):
                 if num + 1 in okuriganas.keys():
                     word = word.replace(kanji, kanji + okuriganas[num + 1])
-                    kanjis = kanjis[:num] + kanjis[num+1:]
+                    kanjis = kanjis[:num] + kanjis[num + 1:]
             if "0" in kana:
                 word = okuriganas[0] + word
         elif kana:
