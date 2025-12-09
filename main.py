@@ -1,19 +1,27 @@
 import logging
 import os
+import sys
+import asyncio
+from dotenv import load_dotenv
 from kanji import Kanji
-from aiogram import Bot, Dispatcher, executor, types
-from aiogram.contrib.fsm_storage.memory import MemoryStorage
-from aiogram.dispatcher import FSMContext
-from aiogram.dispatcher.filters import Text
-from aiogram.dispatcher.filters.state import State, StatesGroup
-from aiogram.types import InputFile
+from aiogram import Bot, Dispatcher, types, F, Router
+from aiogram.client.default import DefaultBotProperties
+from aiogram.enums import ParseMode
+from aiogram.fsm.storage.memory import MemoryStorage
+from aiogram.fsm.context import FSMContext
+from aiogram.fsm.state import State, StatesGroup
+from aiogram.types.input_file import FSInputFile
+from aiogram.filters import Command, CommandStart
 
-logging.basicConfig(level=logging.INFO)
-AIOGRAM_API_TOKEN = os.environ.get("AIOGRAM_API_TOKEN")
+
+load_dotenv()
+AIOGRAM_API_TOKEN = os.getenv("AIOGRAM_API_TOKEN")
 
 bot = Bot(token=AIOGRAM_API_TOKEN)
 storage = MemoryStorage()
-dp = Dispatcher(bot, storage=storage)
+#dp = Dispatcher(bot, storage=storage)
+dp = Dispatcher()
+router = Router()
 
 
 class KanjiSearch(StatesGroup):
@@ -27,45 +35,46 @@ def escape_markdown(text: str) -> str:
     return text
 
 
-@dp.message_handler(commands=["start"])
+@router.message(CommandStart())
 async def start(message: types.Message):
-    await message.answer(f"_Здравствуйте_, {message.from_user.full_name}\n\n"
-                         f"Это бот по изучению кандзи на основе ЯРКСИ\. Разработчик: @korollzoilist\n\n"
-                         f"Чтобы получить информацию о кандзи, введите команду /search\_kanji "
-                         f"и введите иероглиф",
-                         parse_mode='MarkdownV2')
+    text = escape_markdown(f"_Здравствуйте_, {message.from_user.full_name}\n\n"
+                           f"Это бот по изучению кандзи на основе ЯРКСИ. Разработчик: @korollzoilist\n\n"
+                           f"Чтобы получить информацию о кандзи, введите команду /search_kanji "
+                           f"и введите иероглиф")
+    await message.answer(text, parse_mode='MarkdownV2')
 
 
-@dp.message_handler(commands=["help"])
+@router.message(Command("help"))
 async def help_info(message: types.Message):
-    await message.answer("На данный момент бот работает только на поиск иероглифов, в будущем планируется поиск "
-                         "составных слов по кандзи, Хепберну и Поливанову.\nЕсли бот не отвечает в течение пятнадцати "
-                         "секунд, перестал работать на полпути или информация отображается некорректно, "
-                         "пишите @korollzoilist и отправьте кандзи, на котором бот завис")
+    text = escape_markdown("На данный момент бот работает только на поиск иероглифов, в будущем планируется поиск "
+                           "составных слов по кандзи, Хепберну и Поливанову.\nЕсли бот не отвечает в течение пятнадцати "
+                           "секунд, перестал работать на полпути или информация отображается некорректно, "
+                           "пишите @korollzoilist и отправьте кандзи, на котором бот завис")
+    await message.answer(text)
 
 
-@dp.message_handler(commands=["search_kanji"])
-async def search_kanji(message: types.Message):
+@router.message(Command("search_kanji"))
+async def search_kanji(message: types.Message, state: FSMContext):
 
-    await KanjiSearch.search.set()
+    await state.set_state(KanjiSearch.search)
 
     await message.answer("Введите кандзи")
     print(f'Ищет {message.from_user.full_name}')
 
 
-@dp.message_handler(state="*", commands="cancel")
-@dp.message_handler(Text(equals="отмена", ignore_case=True), state="*")
+@router.message(Command("cancel"))
+@router.message(F.text.lower()=="отмена")
 async def cancel(message: types.Message, state: FSMContext):
     current_state = await state.get_state()
     if current_state is None:
         return
     logging.info(f"Collecting state {current_state}")
-    await state.finish()
+    await state.clear()
     await message.answer("Поиск кандзи отменен")
     print(f"{message.from_user.full_name} больше не ищет")
 
 
-@dp.message_handler(state=KanjiSearch.search)
+@router.message(KanjiSearch.search)
 async def kanji_info(message: types.Message, state: FSMContext):
 
     try:
@@ -78,7 +87,7 @@ async def kanji_info(message: types.Message, state: FSMContext):
         await message.answer("Пожалуйста, введите кандзи")
         raise
     else:
-        await state.finish()
+        await state.clear()
 
     kanji_data = kanji.get_info()
 
@@ -92,9 +101,9 @@ async def kanji_info(message: types.Message, state: FSMContext):
     extra_1, extra_2 = "", ""
     if extra_meanings := kanji_data.get('extras', ""):
         if extra_meanings['^']:
-            extra_1 = "\(" + ";".join(extra_meanings['^']) + "\)"
+            extra_1 = "(" + ";".join(extra_meanings['^']) + ")"
         if extra_meanings["*"]:
-            extra_2 = "\[" + ";".join(extra_meanings['*']) + "\]"
+            extra_2 = "[" + ";".join(extra_meanings['*']) + "]"
 
     await message.answer(f"{grade}\n*{kanji_data['kanji']}*: {rusnick} {extra_1}\n"
                          f"Онъёми: {kanji_data['onyomi'] if kanji_data['onyomi'] else 'нет/неизвестно'}\n"
@@ -138,11 +147,11 @@ async def kanji_info(message: types.Message, state: FSMContext):
 
     file = None
     if (gif := f"0_{kanji_data['Nomer']}.gif") in os.listdir("SOD"):
-        file = InputFile(f"SOD/{gif}")
+        file = FSInputFile(f"SOD/{gif}")
     elif (gif := f"1_{kanji_data['Nomer']}.gif") in os.listdir("SOD"):
-        file = InputFile(f"SOD/{gif}")
+        file = FSInputFile(f"SOD/{gif}")
     elif (gif := f"2_{kanji_data['Nomer']}.gif") in os.listdir("SOD"):
-        file = InputFile(f"SOD/{gif}")
+        file = FSInputFile(f"SOD/{gif}")
 
     if file:
         await message.answer_animation(file)
@@ -150,9 +159,9 @@ async def kanji_info(message: types.Message, state: FSMContext):
         await message.answer("Для этого кандзи нет диаграммы начертания")
 
 
-@dp.message_handler(commands='grades')
+@router.message(Command('grades'))
 async def grades(message: types.Message):
-    text = ("(1-10) класс - класс в школах Японии, в котором учат данный иероглиф\n"
+    text = escape_markdown("(1-10) класс - класс в школах Японии, в котором учат данный иероглиф\n"
             "+++ - иероглиф не включен в \"Дзёё кандзи\", но весьма употребим и вполне мог бы туда входить\n"
             "++ - иероглиф достаточно употребим и вероятно претендовал бы на попадание в список \"Дзёё кандзи\"\n"
             "+ - иероглиф не очень употребим, но знание его может пригодиться\n"
@@ -169,14 +178,24 @@ async def grades(message: types.Message):
     await message.answer(text)
 
 
-@dp.message_handler(commands='giveusatank')
+@router.message(Command('giveusatank'))
 async def daite_tank(message: types.Message):
-    await message.answer("Вау. Видимо, Вы - человек высокой культуры.\nНапишите мне, поболтаем о группе и всяком")
+    await message.answer(escape_markdown("Вау. Видимо, Вы - человек высокой культуры.\nНапишите мне, поболтаем о группе и всяком"))
 
 
-@dp.message_handler()
+@router.message()
 async def echo(message: types.Message):
-    await message.answer(message.text)
+    await message.answer(escape_markdown(message.text))
+
+
+async def main():
+    
+    bot = Bot(token=AIOGRAM_API_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.MARKDOWN_V2))
+    dp = Dispatcher()
+    dp.include_router(router)
+
+    await dp.start_polling(bot)
 
 if __name__ == '__main__':
-    executor.start_polling(dp, skip_updates=True)
+    logging.basicConfig(level=logging.INFO, stream=sys.stdout)
+    asyncio.run(main())
