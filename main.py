@@ -7,7 +7,7 @@ from fastapi import FastAPI, Request
 
 logging.basicConfig(level=logging.INFO, stream=sys.stdout)
 WEBHOOK_PATH = "/webhook"
-WEBHOOK_URL = f"https://f5zoma-81-195-180-5.ru.tuna.am{WEBHOOK_PATH}"
+WEBHOOK_URL = f"https://your-domain.com{WEBHOOK_PATH}"
 
 
 @asynccontextmanager
