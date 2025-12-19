@@ -12,7 +12,7 @@ from aiogram.filters import Command, CommandStart
 
 load_dotenv()
 AIOGRAM_API_TOKEN = os.getenv("AIOGRAM_API_TOKEN")
-bot = Bot(token=AIOGRAM_API_TOKEN)
+tg_bot = Bot(token=AIOGRAM_API_TOKEN)
 storage = MemoryStorage()
 dp = Dispatcher()
 router = Router()
@@ -170,7 +170,7 @@ async def grades(message: types.Message):
             "xx - иероглиф крайне редок\n"
             "xxx - иероглиф можно считать практически несуществующим\n"
             "Ф - форма или вариант другого иероглифа")
-    await message.answer(text)
+    await message.answer(text, parse_mode='MarkdownV2')
 
 
 @router.message(Command('giveusatank'))
